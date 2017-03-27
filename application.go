@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+
 func main() {
 	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
@@ -47,14 +49,8 @@ func saveHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFiles(tmpl + ".html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = t.Execute(w, p)
+	err := templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	t.Execute(w, p)
 }
