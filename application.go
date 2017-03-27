@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
+	"regexp"
 )
 
 var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func main() {
 	http.HandleFunc("/view/", viewHandler)
@@ -15,7 +18,11 @@ func main() {
 }
 
 func viewHandler(w http.ResponseWriter, req *http.Request) {
-	title := req.URL.Path[len("/view/"):]
+	title, err := getTitle(w, req)
+	if err != nil {
+		return
+	}
+
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, req, "/edit/"+title, http.StatusFound)
@@ -26,7 +33,11 @@ func viewHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func editHandler(w http.ResponseWriter, req *http.Request) {
-	title := req.URL.Path[len("/edit/"):]
+	title, err := getTitle(w, req)
+	if err != nil {
+		return
+	}
+
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -36,16 +47,29 @@ func editHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func saveHandler(w http.ResponseWriter, req *http.Request) {
-	title := req.URL.Path[len("/save/"):]
-	body := req.FormValue("body")
+	title, err := getTitle(w, req)
+	if err != nil {
+		return
+	}
 
+	body := req.FormValue("body")
 	page := &Page{Title: title, Body: []byte(body)}
-	err := page.save()
+	err = page.save()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	http.Redirect(w, req, "/view/"+title, http.StatusFound)
+}
+
+func getTitle(w http.ResponseWriter, req *http.Request) (string, error) {
+	m := validPath.FindStringSubmatch(req.URL.Path)
+	if m == nil {
+		http.NotFound(w, req)
+		return "", errors.New("Invalid page title")
+	}
+	return m[2], nil
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
