@@ -26,8 +26,13 @@ func OpenDB() {
 	defer db.Close()
 
 	// user, _ := GetByID(db, 1)
-	user, _ := GetByIDSimpler(db, 3)
-	log.Println(user)
+	// user, _ := GetByIDSimpler(db, 3)
+	// log.Println(user)
+
+	// user := &User{name: "Tom Hanks", sex: 1, descp: "football"}
+	// InsertUser(db, user)
+
+	err = UpdateUser(db, 4, "bird")
 }
 
 func GetByIDSimpler(db *sql.DB, id int) (*User, error) {
@@ -70,4 +75,36 @@ func GetByID(db *sql.DB, id int) (*User, error) {
 		return nil, err
 	}
 	return user, nil
+}
+
+func InsertUser(db *sql.DB, user *User) error {
+	stmt, err := db.Prepare("insert into user (name, sex, descp) values (?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(user.name, user.sex, user.descp)
+	if err != nil {
+		return err
+	}
+
+	lastID, _ := res.LastInsertId()
+	rowCnt, _ := res.RowsAffected()
+	log.Printf("ID = %d, affected = %d\n", lastID, rowCnt)
+	return nil
+}
+
+func UpdateUser(db *sql.DB, id int, descp string) error {
+	stmt, err := db.Prepare("update user set descp = ? where id = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(descp, id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
