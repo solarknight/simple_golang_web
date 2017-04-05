@@ -5,5 +5,5 @@ import (
 )
 
 func QueryDemo() {
-	dao.OpenDB()
+	dao.ConnectDB()
 }

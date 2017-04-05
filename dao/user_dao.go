@@ -2,9 +2,11 @@ package dao
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 )
 
 type User struct {
@@ -12,6 +14,29 @@ type User struct {
 	name  string
 	sex   int
 	descp string
+}
+
+type Person struct {
+	ID    int
+	Name  string
+	Sex   int
+	Descp string
+}
+
+func ConnectDB() {
+	db, err := sqlx.Connect("mysql", "root:solarknight@tcp(127.0.0.1:3306)/user_info")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	persons := []Person{}
+	err = db.Select(&persons, "select * from user where id < 5")
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	tom, lilei := persons[0], persons[1]
+	fmt.Printf("Tom: %v, Lilei: %v\n", tom, lilei)
 }
 
 func OpenDB() {
