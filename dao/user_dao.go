@@ -7,21 +7,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/solarknight/simple_golang_web/common"
 )
-
-type User struct {
-	id    int
-	name  string
-	sex   int
-	descp string
-}
-
-type Person struct {
-	ID    int
-	Name  string
-	Sex   int
-	Descp string
-}
 
 func ConnectDB() {
 	db, err := sqlx.Connect("mysql", "root:solarknight@tcp(127.0.0.1:3306)/user_info")
@@ -29,7 +16,7 @@ func ConnectDB() {
 		log.Fatalln(err)
 	}
 
-	persons := []Person{}
+	persons := []common.User{}
 	err = db.Select(&persons, "select * from user where id < 5")
 	if err != nil {
 		log.Fatalln(err)
@@ -39,30 +26,23 @@ func ConnectDB() {
 	fmt.Printf("Tom: %v, Lilei: %v\n", tom, lilei)
 }
 
-func OpenDB() {
+func OpenDB() (*sql.DB, error) {
 	db, err := sql.Open("mysql", "root:solarknight@tcp(127.0.0.1:3306)/user_info")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	defer db.Close()
 
-	// user, _ := GetByID(db, 1)
-	// user, _ := GetByIDSimpler(db, 3)
-	// log.Println(user)
-
-	// user := &User{name: "Tom Hanks", sex: 1, descp: "football"}
-	// InsertUser(db, user)
-
-	err = UpdateUser(db, 4, "bird")
+	return db, nil
 }
 
-func GetByIDSimpler(db *sql.DB, id int) (*User, error) {
-	user := new(User)
-	err := db.QueryRow("select id, name, sex, descp from user where id = ?", id).Scan(&user.id, &user.name, &user.sex, &user.descp)
+func GetByIDSimpler(db *sql.DB, id int) (*common.User, error) {
+	user := new(common.User)
+	err := db.QueryRow("select id, name, sex, descp from user where id = ?", id).Scan(&user.Id, &user.Name, &user.Sex, &user.Descp)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -70,7 +50,7 @@ func GetByIDSimpler(db *sql.DB, id int) (*User, error) {
 	return user, nil
 }
 
-func GetByID(db *sql.DB, id int) (*User, error) {
+func GetByID(db *sql.DB, id int) (*common.User, error) {
 	stmt, err := db.Prepare("select id, name, sex, descp from user where id = ?")
 	if err != nil {
 		log.Fatal(err)
@@ -85,9 +65,9 @@ func GetByID(db *sql.DB, id int) (*User, error) {
 	}
 	defer rows.Close()
 
-	user := new(User)
+	user := new(common.User)
 	for rows.Next() {
-		err := rows.Scan(&user.id, &user.name, &user.sex, &user.descp)
+		err := rows.Scan(&user.Id, &user.Name, &user.Sex, &user.Descp)
 		if err != nil {
 			log.Fatal(err)
 			return nil, err
@@ -102,14 +82,14 @@ func GetByID(db *sql.DB, id int) (*User, error) {
 	return user, nil
 }
 
-func InsertUser(db *sql.DB, user *User) error {
+func InsertUser(db *sql.DB, user *common.User) error {
 	stmt, err := db.Prepare("insert into user (name, sex, descp) values (?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(user.name, user.sex, user.descp)
+	res, err := stmt.Exec(user.Name, user.Sex, user.Descp)
 	if err != nil {
 		return err
 	}

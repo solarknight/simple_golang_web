@@ -1,38 +1,77 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"regexp"
+	"strconv"
+
+	"encoding/json"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/solarknight/simple_golang_web/common"
 	"github.com/solarknight/simple_golang_web/service"
 )
 
-var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
-var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+type Controller func(http.ResponseWriter, *http.Request, httprouter.Params) (interface{}, error)
 
 func main() {
-	// router := httprouter.New()
-	// router.GET("/", Index)
-	// router.GET("/hello/:name", Hello)
-	// router.GET("/user/:id", GetUser)
-	// log.Fatal(http.ListenAndServe(":8080", router))
-	service.QueryDemo()
+	port := parseArgs()
+	log.Println("Start on port", port)
+	log.Println(http.ListenAndServe(":"+strconv.Itoa(port), initRouter()))
 }
 
-func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprint(w, "Welcome!\n")
+func parseArgs() (port int) {
+	p := flag.Int("p", 8080, "port")
+	flag.Parse()
+	port = *p
+	return
 }
 
-func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	fmt.Fprintf(w, "Hello, %s!\n", ps.ByName("name"))
+func initRouter() http.Handler {
+	router := httprouter.New()
+	router.GET("/", RestWrap(Index))
+	router.GET("/hello", RestWrap(Hello))
+	router.GET("/user/:id", RestWrap(GetUser))
+	return router
 }
 
-func GetUser(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	fmt.Fprintf(w, "Hello, %s!\n", ps.ByName("name"))
+func RestWrap(c Controller) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		data, err := c(w, r, ps)
+		if err != nil {
+			log.Println("Error during process request", err)
+			json.NewEncoder(w).Encode(&common.RestResponse{1, err.Error(), nil})
+			return
+		}
+
+		json.NewEncoder(w).Encode(&common.RestResponse{0, "", data})
+	}
 }
+
+func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) (interface{}, error) {
+	return "Welcome!", nil
+}
+
+func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) (interface{}, error) {
+	name := r.URL.Query().Get("name")
+	return fmt.Sprintf("Hello, %s", name), nil
+}
+
+func GetUser(w http.ResponseWriter, r *http.Request, ps httprouter.Params) (interface{}, error) {
+	id, err := strconv.Atoi(ps.ByName("id"))
+	if err != nil {
+		return nil, err
+	}
+	return service.QueryByID(id)
+}
+
+var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
